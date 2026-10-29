@@ -3,7 +3,7 @@
 flayr is a one stop shop for a business's social content. Its remote MCP server lets AI agents and assistants work with your brands: list brands and connected accounts, draft posts, attach media, schedule or publish to 13 platforms, manage posting queues and approvals, and read analytics.
 
 - **Server URL:** `https://flayr.social/api/mcp` (Streamable HTTP, stateless)
-- **Auth:** a flayr API key as `Authorization: Bearer flayr_sk_…` (create one at https://flayr.social/developers). OAuth sign-in (you sign in to flayr and pick the brand the agent may use) is rolling out; if your client can't complete the sign-in, use an API key.
+- **Auth:** OAuth sign-in or a flayr API key. With OAuth your client opens flayr's sign-in page, you sign in, pick the brand the agent may use and approve; you can revoke the connection at any time. Clients without MCP OAuth use an API key as `Authorization: Bearer flayr_sk_…` (create one at https://flayr.social/developers).
 - **Plan:** the MCP server needs the flayr **Pro plan or higher**. See [Plans](#plans).
 - **Tools:** see [`tools.json`](tools.json). Read-only tools are annotated read-only; anything that publishes or deletes is annotated destructive, so your assistant asks first.
 - **Reference:** https://flayr.social/llms.txt · API docs https://flayr.social/docs
@@ -21,7 +21,7 @@ There is nothing to install or run locally. This repository holds the listing me
 
 ## Connect
 
-Menu names in each app change often. The URL and auth are what matter. The examples without a header use OAuth sign-in; until that works in your client, add the `Authorization: Bearer flayr_sk_YOUR_KEY` header as in [Any other MCP client](#any-other-mcp-client).
+Menu names in each app change often. The URL and auth are what matter. The examples without a header use OAuth sign-in. If your client doesn't support MCP OAuth, add the `Authorization: Bearer flayr_sk_YOUR_KEY` header as in [Any other MCP client](#any-other-mcp-client).
 
 ### Claude Code
 

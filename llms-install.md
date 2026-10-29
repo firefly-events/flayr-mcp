@@ -4,7 +4,7 @@ flayr is a **remote** MCP server. There is nothing to clone, build or run locall
 
 - Server URL: `https://flayr.social/api/mcp`
 - Transport: Streamable HTTP (`type: "streamable-http"` or `"http"`)
-- Auth: a flayr API key sent as `Authorization: Bearer flayr_sk_…`, or OAuth sign-in (rolling out: the client opens a browser and the person signs in to flayr and picks a brand)
+- Auth: a flayr API key sent as `Authorization: Bearer flayr_sk_…`, or OAuth sign-in (the client opens a browser and the person signs in to flayr and picks a brand)
 - Plan: the person's flayr account needs the Pro plan or higher
 
 ## Steps
