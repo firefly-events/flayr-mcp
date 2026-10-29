@@ -1,0 +1,458 @@
+[
+  {
+    "name": "whoami",
+    "title": "Check this connection",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Returns who this connection (an OAuth sign-in or an API key) belongs to: userId, the account's current plan tier, and brandId/brandName when the connection is bound to one brand (null = account-wide). Call this first to learn what the connection can reach."
+  },
+  {
+    "name": "list_brands",
+    "title": "List brands",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Lists the brands this connection can file content into and publish through. Use an `id` as `brandId` on create_content, publish, queues and analytics tools; \"personal\" means the account owner's personal accounts. A connection bound to one brand sees only that brand (and personal is null)."
+  },
+  {
+    "name": "list_connected_accounts",
+    "title": "List connected social accounts",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "The social accounts a brand can post to — the same set publish would use for that `brandId`: platform, handle, display name, health (healthy, needs_reauth, disconnected) and whether flayr can post there right now (`postable`; Reddit is paused because Reddit closed its API to third-party apps). Call this before publish to pick platforms, and tell the user to reconnect any account that is not healthy at flayr.social/connect."
+  },
+  {
+    "name": "list_youtube_playlists",
+    "title": "List YouTube playlists",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Playlists of the YouTube channel(s) a brand publishes to. Use a playlist id as `youtube.playlistId` on create_content or publish."
+  },
+  {
+    "name": "list_pinterest_boards",
+    "title": "List Pinterest boards",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Boards of the Pinterest account(s) a brand publishes to. Use a board id as `pinterest.boardId` on publish. A board is required; the one you pick is remembered as the brand's default for next time, and a publish that uses the default says so (defaultBoardApplied)."
+  },
+  {
+    "name": "upload_media",
+    "title": "Get a media upload URL",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Step 1 of attaching a LOCAL file (video or image) to a draft. Returns a single-use, short-lived `uploadUrl`. Step 2: POST the raw file bytes to it with the file's Content-Type, e.g. `curl -X POST -H \"Content-Type: video/mp4\" --data-binary @clip.mp4 \"<uploadUrl>\"` — the JSON response has a `storageId`. Step 3: pass it as `videoStorageId` or `imageStorageId` on create_content or update_content. For media already on the web, skip this and pass `videoUrl` / `imageUrl` instead. Returns 413 when the account's storage is full."
+  },
+  {
+    "name": "list_content",
+    "title": "List content",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Lists content items (drafts), newest first. Each carries `postState` (\"posted\" / \"scheduled\" / null) and `posts[]` (up to 5): where it went out, per platform, with status, live URL and failure reason."
+  },
+  {
+    "name": "get_content",
+    "title": "Get a content item and its post status",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "One content item plus its live posting status: `postState` and `posts[]` (up to 20, newest first) with each post's status (scheduled · publishing · published · partial · failed · review_held · held), scheduledAt, and per-platform status, live URL and error. The item's own `status` stays \"draft\" after publishing — read `posts` to know whether it is live. Use this to confirm a publish landed."
+  },
+  {
+    "name": "create_content",
+    "title": "Create a draft",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Creates a DRAFT content item. Nothing is posted. Give `text` plus optional media (`videoUrl` / `imageUrl`, or `videoStorageId` / `imageStorageId` from upload_media), target `platforms`, `brandId` (from list_brands; omitted → the brand last active in the dashboard), per-platform captions (`platformText`), creator `credits`, `labels` and YouTube options. Returns the new `id` — pass it as `contentId` to publish or add_queue_items."
+  },
+  {
+    "name": "update_content",
+    "title": "Edit a draft",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Edits a draft in place; only the fields you pass change. Any media field replaces the draft's media as a set (keeps the id, so queue items still point at it). Refused (409) for archived or already-published items, and a media swap is refused once a queue booked it. `labels`, `opus` and `videoWatermarked` may be changed on published items too. A video draft's custom thumbnail/cover: `thumbnailStorageId` (an image from upload_media) or `thumbnailUrl`, or `thumbnailFrameOffsetMs` for a frame of the video; `thumbnailUrl: null` clears it. It is sent to YouTube (long-form), Facebook, LinkedIn, Instagram Reels, TikTok and Pinterest at publish."
+  },
+  {
+    "name": "delete_content",
+    "title": "Delete a content item",
+    "kind": "destructive",
+    "readOnly": false,
+    "destructive": true,
+    "description": "DESTRUCTIVE: permanently deletes a content item from the library. Posts already live on a platform are not removed. Needs the `write` scope. Ask the user before calling."
+  },
+  {
+    "name": "combine_clips",
+    "title": "Combine clips into a finished video",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Extends a video draft (`id`) with more clips and image cards into ONE finished video, rendered by flayr and saved as a NEW linked draft (same brand, caption copied, credits merged, labelled variant:combined). Nothing is posted and the original is unchanged. Use it to show a finished print with painting/assembly clips before or after it. `segments` (2-8, in order) must include the video itself as { kind: \"clip\", contentId: id }; clips are Library videos (contentId) or uploads (storageId from upload_media) with inMs/outMs (or durationMs = the clip's full length); cards are images (contentId of a Library image or video thumbnail, or imageStorageId) with durationMs and optional text. `transition` cut|crossfade, `audio` keep|mute_extras|main_across. Max 60 min by default (long-form: cold open + trimmed recording + bumpers). Costs 25 Embers per started minute of output for the first 3 min, then 5 per further started minute by default (refunded on failure). Returns a jobId — poll get_job_status."
+  },
+  {
+    "name": "get_job_status",
+    "title": "Get a render/generation job status",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Status of an async job (combine_clips, or an API video generation): pending, processing, completed or failed. For a combine, `resultContentId` is the new draft once completed; a failed combine is refunded automatically. Poll every 10-30 s — renders take about a minute."
+  },
+  {
+    "name": "publish",
+    "title": "Publish or schedule a post (goes live)",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "PUBLISHES TO REAL SOCIAL ACCOUNTS. Posts now, or at `scheduledAt` (ISO-8601, future). Prefer `contentId` (a draft from create_content: its text and media become the post) over inline `content`. The post goes out through the target brand's own connected accounts. Always pass an `idempotencyKey` so a retry never double-posts. The same safety gates as the dashboard apply: platform readiness/media rules are checked up front (422); if the brand requires scheduled-post review nothing is sent and you get { status: \"pending-review\", reviewId }; a missing required creator credit in a push-down brand is refused (422 attribution_missing) or held; the \"Posted with flayr.social\" caption watermark and video watermark follow the plan (409 watermark_pending means the watermarked video is still rendering — retry after retryAfterSeconds). `facebook: { contentType: \"reel\" }` posts a Facebook Reel (exactly one video), `\"story\"` a Story, `\"feed\"` a regular post; `instagram.contentType` works the same; omitted → the draft's saved post type. `pinterest: { boardId, title, link }` picks the board (ids from list_pinterest_boards; required: omitted → the brand's last-picked board for that account, flagged as defaultBoardApplied, else 422 pinterest_board_required), pin title and destination link. `requiresApproval: true` files it for human approval instead of posting. A draft that is already scheduled on one of the platforms is refused (409 already_booked): change the booked post instead, or pass `allowDuplicateBooking: true` only when the user asked to post it again. Needs the `publish` scope (or admin) and the Pro plan or higher; each publish counts against the plan's direct posts for the month. Confirm with the user before posting now. Then call get_content to see the live URLs."
+  },
+  {
+    "name": "get_post",
+    "title": "Get a scheduled post's first comments",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "A post (`id` = convexPostId from publish, or posts[].id from get_content): status, slot, platforms, and while it is scheduled the first comment each platform will publish and whether it can be changed now."
+  },
+  {
+    "name": "update_scheduled_post",
+    "title": "Edit a scheduled post (caption, first comments, platforms)",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "CHANGES WHAT A SCHEDULED POST WILL PUBLISH on real accounts, keeping its slot, accounts, options, labels and draft. `firstComment` sets per-platform first comments (linkedin, facebook, instagram, threads, youtube; null removes; X/Bluesky have none); `text` / `platformText` change the caption; `applyAutoFirstComment: true` adds the brand's auto first comment where none is set; `removePlatforms` drops platforms from this booking (e.g. a duplicate TikTok). Updated in place when the platform scheduler allows it, otherwise re-booked at the same slot (status \"rebooked\", new postId). Refused within 5 minutes of the slot. Repeating the same edit returns \"unchanged\". Needs the `publish` scope (or admin) and the Pro plan or higher; each publish counts against the plan's direct posts for the month. Confirm the new text with the user first."
+  },
+  {
+    "name": "cancel_scheduled_post",
+    "title": "Cancel a scheduled post",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "Takes a SCHEDULED post off the platform schedule and marks it cancelled (the draft stays, so it can be published again). Safe to repeat. Refused within 5 minutes of the slot, and when the platform will not remove it (some YouTube uploads). Needs the `publish` scope (or admin) and the Pro plan or higher; each publish counts against the plan's direct posts for the month. Confirm with the user first."
+  },
+  {
+    "name": "list_reviews",
+    "title": "List scheduled-post reviews",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Scheduled posts waiting for (or given) a human sign-off, oldest slot first. `canApprove` tells whether THIS connection may approve each one."
+  },
+  {
+    "name": "decide_review",
+    "title": "Approve or hold a scheduled post",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "decision \"approve\" sends a held post to the platform for its slot (GOES LIVE) — needs the explicit `review` scope (admin does not include it) and never works on a post the same connection created. decision \"hold\" takes a scheduled post off the platform schedule — needs `review` or `publish`. Agency plan. `id` is a reviewId or a convexPostId."
+  },
+  {
+    "name": "list_approvals",
+    "title": "List content waiting for your approval",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Content held for approval that waits on the account owner's decision, newest first: posts filed with publish `requiresApproval: true`, drafts submitted for review, and workflow runs parked at an approval gate. `kind` is \"manual\" or \"workflow\". Needs the explicit `approve` scope (admin does not include it). Agency plan."
+  },
+  {
+    "name": "decide_approval",
+    "title": "Approve or reject held content",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "Same rules as the dashboard: only the assigned approver may decide. On a \"workflow\" approval, decision \"approve\" resumes the parked run, whose next steps may publish (GOES LIVE); \"reject\" cancels it. On a \"manual\" approval, \"approve\" only marks the content approved — nothing is posted until you call publish with its contentId — and \"reject\" returns it to draft. Needs the explicit `approve` scope (admin does not include it). Agency plan. Repeating the same decision is safe (alreadyDecided: true). Confirm with the user before approving a workflow approval."
+  },
+  {
+    "name": "list_queues",
+    "title": "List posting queues",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Posting (drip) queues of one brand. A queue posts one item every cadenceHours at timeOfDay in its timezone, keeping `lookahead` items booked at the platform."
+  },
+  {
+    "name": "get_queue",
+    "title": "Get a posting queue",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "A queue and its items in order, with each item's state (queued · publishing · scheduled · posted · failed · skipped), booked or projected slot, and attribution status."
+  },
+  {
+    "name": "create_queue",
+    "title": "Create a posting queue",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "Creates a posting queue. Once items are added it BOOKS REAL POSTS on the given platforms on its cadence (default daily 19:00 America/Chicago, 2 booked ahead). Use `startsAt` to hold everything until a date. Needs the `publish` scope (or admin) on the Agency plan or higher."
+  },
+  {
+    "name": "update_queue",
+    "title": "Update, pause or resume a queue",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "`status: \"paused\"` stops new bookings (already-booked posts stay booked); \"active\" resumes. Other fields (platforms, cadenceHours, timeOfDay, lookahead, startsAt, name) apply from the next booking. Needs the `publish` scope (or admin) on the Agency plan or higher."
+  },
+  {
+    "name": "delete_queue",
+    "title": "Delete a posting queue",
+    "kind": "destructive",
+    "readOnly": false,
+    "destructive": true,
+    "description": "DESTRUCTIVE: deletes the queue (its drafts stay in the library). With posts booked at the platform it is refused (409) unless `unschedule: true`, which first deletes those platform posts. Needs the `publish` scope (or admin) on the Agency plan or higher. Ask the user before calling."
+  },
+  {
+    "name": "add_queue_items",
+    "title": "Add drafts to a queue",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "Appends drafts (content ids) to the end of a queue — they will be BOOKED AND POSTED on the queue's schedule. Use `contentIds`, or `items` for a per-item YouTube title or platforms. Drafts of another brand, duplicates, archived drafts and drafts without a video for a video platform come back in `rejected`. Needs the `publish` scope (or admin) on the Agency plan or higher."
+  },
+  {
+    "name": "queue_item_action",
+    "title": "Skip, retry, unschedule, retitle or move a queue item",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "`action`: \"skip\" passes over a queued item; \"retry\" puts a failed/skipped item back in line; \"unschedule\" deletes a booked platform post and puts the item back in line. Also `youtubeTitle`, per-item `platforms`, and `position` (0-based among waiting items). Needs the `publish` scope (or admin) on the Agency plan or higher."
+  },
+  {
+    "name": "remove_queue_item",
+    "title": "Remove an item from a queue",
+    "kind": "destructive",
+    "readOnly": false,
+    "destructive": true,
+    "description": "DESTRUCTIVE: removes an item (the draft stays in the library). A booked (`scheduled`) item is refused (409) unless `unschedule: true`, which deletes its platform post first. Needs the `publish` scope (or admin) on the Agency plan or higher."
+  },
+  {
+    "name": "reorder_queue_items",
+    "title": "Reorder waiting queue items",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "Send every waiting (queued) item id exactly once, in the new order. Booked, posted, failed and skipped items keep their places. Needs the `publish` scope (or admin) on the Agency plan or higher."
+  },
+  {
+    "name": "get_analytics",
+    "title": "Analytics overview",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Engagement overview for the last 7, 30 or 90 days. Pro plan or higher."
+  },
+  {
+    "name": "query_insights",
+    "title": "Run a custom insight query",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Read-only analytics query: one `metric` aggregated (median by default) over posts, broken down by up to a few dimensions (platform, weekday, hour, brand, campaign, postType, label:<key>, arm), at a fixed post age `window` (48h / 7d / 30d / lifetime) so posts are compared fairly. Every row carries its sample size n; platforms that do not report the metric are listed in `availability`, never counted as 0. Pro plan or higher."
+  },
+  {
+    "name": "compare_labels",
+    "title": "Compare posts by a label (A/B)",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Splits every labelled post by the values of one label key (e.g. key \"cut\" → cut:opus vs cut:raw) and reports medians with n per group at the 48h / 7d snapshot. Descriptive, not a significance test. Pro plan or higher."
+  },
+  {
+    "name": "list_experiments",
+    "title": "List experiments",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "A/B experiments. Content joins one by carrying the label `experiment:<id>` plus `<compareKey>:<variant>`."
+  },
+  {
+    "name": "get_experiment",
+    "title": "Get an experiment",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "One experiment: hypothesis, variants, compareKey, window and status."
+  },
+  {
+    "name": "create_experiment",
+    "title": "Create an experiment",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Creates an A/B experiment. Then tag drafts with its `label` (experiment:<id>) and `<compareKey>:<variant>` via update_content `labels`, publish them, and read get_experiment_results."
+  },
+  {
+    "name": "update_experiment",
+    "title": "Update an experiment",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Changes an experiment's fields (e.g. status \"running\" / \"done\", endAt, notes). Only the fields you pass change."
+  },
+  {
+    "name": "delete_experiment",
+    "title": "Delete an experiment",
+    "kind": "destructive",
+    "readOnly": false,
+    "destructive": true,
+    "description": "DESTRUCTIVE: deletes the experiment record (content keeps its labels). Ask the user before calling."
+  },
+  {
+    "name": "get_experiment_results",
+    "title": "Experiment results",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "The experiment's posts split by its compareKey, with the leading variant by its primary metric and n per arm. Small samples: read medians with their n."
+  },
+  {
+    "name": "list_text_templates",
+    "title": "List formats (text templates)",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Reusable text shapes per brand: sections, length targets, hook patterns, CTA slots and guardrails. Use one to shape a draft's text before create_content."
+  },
+  {
+    "name": "get_text_template",
+    "title": "Get a format",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "One format (text template) with its full structure and example."
+  },
+  {
+    "name": "create_text_template",
+    "title": "Create a format",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Creates a reusable format (text template) in a brand."
+  },
+  {
+    "name": "update_text_template",
+    "title": "Update a format",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Changes a format; only the fields you pass change. `archived: true` hides it."
+  },
+  {
+    "name": "delete_text_template",
+    "title": "Delete a format",
+    "kind": "destructive",
+    "readOnly": false,
+    "destructive": true,
+    "description": "DESTRUCTIVE: deletes a format (drafts started from it keep their text). Ask the user before calling."
+  },
+  {
+    "name": "list_attribution_rules",
+    "title": "List creator-credit rules",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "The brand's \"posts like this must carry a credit\" rules and its mode (flag / push_down). In push_down mode publish refuses or holds a post missing a required credit — add `credits` with update_content first."
+  },
+  {
+    "name": "list_share_rules",
+    "title": "List share rules",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "The brand's share rules: \"when <account> publishes, reshare to <accounts> (or comment on it) after N minutes with text T\", each with its approval mode."
+  },
+  {
+    "name": "create_share_rule",
+    "title": "Create a share rule",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "Creates a rule that reshares (or comments on) every new post of the source accounts. Defaults to needs_approval: each fire waits for approve in act_on_publish_action. Only LinkedIn (native reshare) and X (quote own / retweet) really repost; other platforms get a link share. Confirm with the user first. Needs the `publish` scope (or admin) on the Agency plan or higher."
+  },
+  {
+    "name": "list_publish_actions",
+    "title": "List comments after publish and reshares",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Pending, sent and failed comments-after-publish and reshares of the brand (filter by `status`, e.g. needs_approval or failed), with what each waits on."
+  },
+  {
+    "name": "act_on_publish_action",
+    "title": "Approve, reject, retry or cancel a reshare / comment",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "approve lets a rule's reshare / comment go out at its time; retry re-sends a failed one (same idempotency key); reject / cancel stop it. Confirm with the user before approving. Needs the `publish` scope (or admin) on the Agency plan or higher."
+  },
+  {
+    "name": "add_post_comments",
+    "title": "Add comments after publish to a post",
+    "kind": "publish",
+    "readOnly": false,
+    "destructive": true,
+    "description": "Schedules comments on a post, sent once after it is live on that platform and its tokens resolve ({{postUrl}}, {{parentPostUrl:<post id>}}, {{youtubeUrl:<post id>}}), optionally at sendAt. Confirm with the user first. Needs the `publish` scope (or admin) on the Agency plan or higher."
+  },
+  {
+    "name": "list_post_comments",
+    "title": "List a post's comments after publish",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "A post's comments-after-publish and reshares, with status (waiting, needs_approval, sent, failed) and the resolved text."
+  },
+  {
+    "name": "list_frames",
+    "title": "List frames",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "The brand's frames (borders, overlays, lower thirds, corner tags, quote-card frames, ribbons) plus the built-in flayr frames in the brand colors. Each has a `ref` to pass to apply_frame."
+  },
+  {
+    "name": "get_frame",
+    "title": "Get a frame",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "One library frame with its sizes and content areas."
+  },
+  {
+    "name": "create_frame",
+    "title": "Add a frame to the library",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Copy a flayr frame into the brand library (`defaultKey`, optional colors/texts), or add uploaded PNG/SVG art (upload_media first; `variants` of storageIds, the content area is detected from transparency)."
+  },
+  {
+    "name": "apply_frame",
+    "title": "Frame an image",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Draws a frame over an image and returns a new image URL (the original is untouched). Use the URL in create_content, or pass contentId + platform so that post publishes the framed image on that platform. Free by default; the same inputs again are free."
+  },
+  {
+    "name": "get_frame_settings",
+    "title": "Get auto-frame settings",
+    "kind": "read",
+    "readOnly": true,
+    "destructive": false,
+    "description": "Which frame each platform's images get automatically when a post is published or scheduled."
+  },
+  {
+    "name": "update_frame_settings",
+    "title": "Set auto-frame for a platform",
+    "kind": "write",
+    "readOnly": false,
+    "destructive": false,
+    "description": "Frame every image posted to a platform automatically (frameRef), or stop (frameRef null). Applies to posts published or scheduled from now on. Confirm with the user first."
+  }
+]
